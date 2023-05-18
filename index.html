@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang=en>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script>window.addEventListener("DOMContentLoaded", function(){document.getElementById("main-form").innerHTML="<p>Please wait...</p>"});</script>
+    <link href="bootstrap.min.css" rel="stylesheet">
+    <style>
+
+        body {
+            overflow-y: scroll !important;
+            background: linear-gradient(to bottom right, #3498db, green);
+        }
+
+        html {
+            position: relative;
+            min-height: 100%;
+        }
+
+        .container-fluid {
+            color:white;
+        }
+
+        .streak-wrapper{
+            display:none;
+        }
+
+        .row, .col-md-2 {
+            max-width: 100vw
+        }
+
+        hr {
+            width: 50vw !important;
+            margin-left: auto;
+            margin-right: auto;
+            margin-top: 0%;
+        }
+
+        #progress{
+            border-radius:1em;
+        }
+
+        #progress-text{
+            text-fill-color:transparent;
+            background:white;
+            -webkit-text-fill-color:transparent;
+            background-clip:text !important;
+            -webkit-background-clip:text !important;
+        }
+
+        @media (max-width: 767.98px){
+            hr {
+                margin-top: 1%;
+                margin-bottom: 1%
+            }
+
+            p{
+                margin-bottom:0% !important;
+            }
+
+            input{
+                margin-top: 0.5%;
+                max-width:30vw
+            }
+        }
+        
+    </style>
+</head>
+
+<body>
+    <div class="container-fluid justify-content-center text-center align-items-center" style="margin-bottom:3vh">
+        <h1 class="mt-2">Varsity Letter Point Calculator</h1>
+        <p class="mb-1">Use the form below to calculate your points and measure your progress towards a letter.</p>
+        <p class="mb-1"><b>Before beginning, ensure you meet these basic eligibility requirements:</b></p>
+        <ul style="list-style-position:inside;" class="mt-0 mb-5">
+            <li><b>"A"</b> average</li>
+            <li>No unexcused absences</li>
+            <li>No outstanding debt/fines/fees</li>
+            <li>Enrolled for the entire year</li>
+        </ul>
+        <form id="main-form">
+        </form>
+    </div>
+    <footer class="fixed-bottom" id="footer" style="text-align:center; width:100%; color:white; background:inherit; background-repeat:no-repeat; background-size: 100vw 100vh; background-position: 100% 100%;"><span>Current progress:<span id="progress" onclick="showModal();"style="height:2.5vh;display:inline-block;width:40%;background:linear-gradient(to right, #ADFF2F 0%, 0%, #808080 0%);color:white;margin-left:2vw;"><div style="text-fill-color:transparent; background:white;" id="progress-text">0/1000</div></span></span><code style="color:white; font-size:0.6em; right:0; bottom:0; position:absolute;">(b988eec)</code></footer>
+    <script>
+    var total = 0;
+    var previousMap = {};
+
+    function populateComponents(){
+        console.log("Adding form components to DOM");
+        document.getElementById("main-form").innerHTML = "";
+        let COMPONENTS = ["<div class=\"row justify-content-center\"><div class=\"col-md-2\"><label for=\"TestCheckbox\">Test checkbox</label></div><div class=\"col-md-2\"><p>100 pts</p></div><div class=\"col-md-2\"><input type=\"checkbox\" class=\"form-check-input\" id=\"TestCheckbox\"data-streakenabled=\"true\"data-points=\"100\"></div><div class=\"row justify-content-center streak-wrapper\" id=\"TestCheckbox-streak-wrapper\"><div class=\"col-md-2\"><p>How many years? +25 pts/yr</p></div><div class=\"col-md-2\"><input data-streakpoints=25 type=\"number\" id=\"TestCheckbox-streak\" class=\"form-number-input\" min=\"1\" max=\"4\"></input></div></div></div><hr>","<div class=\"row justify-content-center\"><div class=\"col-md-2\"><label for=\"TestNumber\">test number</label></div><div class=\"col-md-2\"><p>25 pts/increment</p></div><div class=\"col-md-2\"><input type=\"number\" class=\"form-number-input\" id=\"TestNumber\" min=\"0\" data-points=\"25\"></div></div><hr>"]
+        for (const each of COMPONENTS){
+            document.getElementById("main-form").innerHTML = document.getElementById("main-form").innerHTML + each + "\n";
+        }
+    }
+
+    function setValueIfNotExists(object, key, value){
+        if (! object[key]){
+            object[key] = value;
+        }
+    }
+    
+    function setup(elem){
+        //add our element to previousMap if it's not there already
+        if (elem.type != "checkbox"){
+            setValueIfNotExists(previousMap, elem.id, 0);
+        } else {
+            //checkbox changed? let's see if this changes based on years
+            if (elem.dataset.streakenabled == "true"){
+                let streakWrapperRef = document.getElementById(elem.id + "-streak-wrapper");
+                let streakRef = document.getElementById(elem.id + "-streak");
+                if (elem.checked){
+                    //show streak input
+                    streakRef.value = "1";
+                    streakWrapperRef.style.display = "inherit";
+                } else {
+                    if (parseInt(streakRef.value) > 1 && parseInt(streakRef.value) <= 4){
+                        total -= (streakRef.dataset.streakpoints * (parseInt(streakRef.value)-1));
+                    }
+                    streakRef.value = "1";
+                    streakWrapperRef.style.display = "none";
+                }
+                previousMap[streakRef.id] = 1;
+            }
+        }
+    }
+
+    function getMultiplier(elem){
+        //is this a number input?
+        if (elem.type == "number" && parseInt(elem.value) >= 0){
+            return parseInt(elem.value) - previousMap[elem.id];
+        }
+        return 1;
+    }
+
+    function onChange(e){
+        console.log("New change event received")
+        let multiplier = 1;
+        let basePoints = e.target.dataset.points;
+
+        setup(e.target);
+
+        //is the input field blank? set it to 0
+        if (e.target.type == "number" && ! e.target.value && parseInt(e.target.value) != 0){
+            e.target.value = "0";
+        //is the value out of range? Reset to the previous value and don't update anything
+        } else if (e.target.type == "number" && (parseInt(e.target.value) > parseInt(e.target.max) || parseInt(e.target.value) < parseInt(e.target.min))) {
+            e.target.value = previousMap[e.target.id];
+            return;
+        }
+
+        multiplier = getMultiplier(e.target);
+        console.log(multiplier);
+
+        if (e.target.type == "number" && e.target.id.endsWith("streak")){
+            basePoints = e.target.dataset.streakpoints;
+            //don't increase basePoints by double our point value on the first increase
+            if (multiplier == 2){
+                multiplier = 1;
+            }
+        }
+        
+        if ((e.target.type == "checkbox" && e.target.checked) || e.target.type == "number"){
+            total = total + parseInt(basePoints)*multiplier;
+        } else {
+            total = total - parseInt(basePoints);
+        }
+
+        //update previousMap with new info
+        if (e.target.type != "checkbox"){
+            previousMap[e.target.id] = parseInt(e.target.value);  
+        }        
+
+        update();
+    }
+
+    function update(){
+        let progress = String(total/10);
+        document.getElementById("progress").style="height:2.5vh;display:inline-block;width:40%;color:white;margin-left:2vw;background:linear-gradient(to right, #ADFF2F "+progress+"%,  #808080 "+progress+"%);";
+        document.getElementById("progress-text").style.background = "linear-gradient(to right, #808080 "+progress+"%,  #ADFF2F "+ progress +"%)";
+        document.getElementById("progress-text").innerHTML=String(total)+"/1000";
+    }
+
+    function currentScrollPercentage(){
+        return Math.min(((document.documentElement.scrollTop + document.body.scrollTop) / (document.documentElement.scrollHeight - document.documentElement.clientHeight) * 100), 99.0);
+    }
+
+    function changePos(e){
+        let currentPos=(document.getElementById('footer').getBoundingClientRect().top/document.body.offsetHeight)*100;let pos=Math.max(currentScrollPercentage(), Math.max(currentPos, Math.min((currentScrollPercentage()+(currentPos/2)),99)));document.getElementById('footer').style.backgroundPosition = pos+"% " + pos+"%";
+    }
+
+
+    window.onload=function(){
+        populateComponents();
+        changePos();
+        window.addEventListener('change', onChange);
+        window.addEventListener('submit', function(e){e.preventDefault();});
+        window.addEventListener('scroll', changePos);
+        window.addEventListener('resize', changePos);
+        window.addEventListener('change', changePos);
+    }
+</script>
+</body>
+</html>
